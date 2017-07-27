@@ -24,6 +24,185 @@ import glob
 # 1) convert all of these functions into a class based function collection
 
 
+def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize=320,blocks_per_frame=24,**kwargs):
+    '''
+    function which finds,loads raw data files for the actual
+    video with audio overlaying and saving
+
+    Inputs:
+        folder_address: string. address to the folder with all the input files
+        input_video_file: string. name of video file.
+        output_video_name: string. Final name of video file - without any format.
+        audio_blocksize: +ve integer. number of samples over which rms is calculated.
+        blocks_per_frame:
+
+        **kwargs
+
+
+    '''
+
+    if audio_blocksize < 0 or not( type(audio_blocksize) is int )  :
+        raise TypeError('audio_blocksize must be a positive integer')
+
+    if blocks_per_frame < 0 or not( type(blocks_per_frame) is int )  :
+        raise TypeError('blocks_per_frame must be a positive integer')
+
+    # search for files with the following wildcard terms
+    synchro_channel = glob.glob(folder_address + 'synchro*.wav')
+    micspos_csv =   glob.glob(folder_address,'micpos*.csv')
+    mic_wavs = glob.glob(folder_address + 'Mic*.wav')
+
+    func_inpts = {'sync channel':synchro_channel,'mic positions': micspos_csv,'mic files':mic_wavs}
+
+    # disp error if some of the files have not been found
+    for entry in func_inpts:
+        if len(func_inpts[entry]) == 0:
+            msg =( 'Unable to find file name for '+ entry+'. '
+            'Please check if the input files are name accordingly or exist in folder'
+            )
+            raise Exception( msg )
+    try:
+        fs, synchron = wav.read(folder+synchro_channel)
+    except:
+        raise Exception('error reading wav.read - please check input address')
+
+
+    f_times = extract_frametimes(synchron)
+
+    rms_chunked = [ rms_calculator( each_file,audio_blocksize,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
+
+    mics_rms = np.column_stack(rms_chunked)
+    micpos = np.asanyarray(read_csv_files(folder+micspos_csv)).flatten()
+    micpos = micpos.astype('int16')
+
+    output_video = folder+ output_video_name
+
+    play_AV(folder_address + input_video_file,output_video,mics_rms,micpos,blocks_per_frame)
+
+
+
+def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_frame,DLTdv5=True,**kwargs):
+    '''
+    function which plays the vide and plots audio rms
+
+    Inputs:
+        videoin_address: string. path to video file
+
+        videoout_address:string. path to output video file with overlay
+
+        mics_rms : N_samples x num_channels np.array of recorded data from the
+                inputs mics whose rms values will be plotted
+
+        mics_pos: 1 x (num_mics x 2) np.array with the x,y pixel coordinates
+
+        rms_vals_per_frame: integer. Number of rms values that are to be plotted
+                        for one frame.
+
+        DLTDv5 : Boolean. Default= True. Whether the xy coordinates were digitised
+                from DLTdv5
+        **kwargs:
+        bat_positions: num_video_frames x (num_batsx2) np.array, with the xy pixel
+                        coordinates over time
+        orig_fps: +ve integer. FPS at which the original video was recorded at
+
+    '''
+
+
+
+    # now let's load the video, and update the audio accordingly :
+    try:
+        cap =  cv2.VideoCapture(videoin_address)
+        num_frames = int ( cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        height,width = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_shape = (height,width)
+    except:
+        raise ValueError('Unable to load video - please check file or address')
+
+    if 'orig_fps' in kwargs:
+        frame_rate = float( kwargs['orig_fps'] )
+    else:
+        frame_rate = 25.0
+
+    try:
+        fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+        vid_out = cv2.VideoWriter(videoout_address,fourcc,frame_rate,(width,height))
+    except:
+        raise Exception('Unable to open videowriter object, check videoout_address')
+
+
+
+
+    # check if num mics and num audio channels match:
+
+    num_mics, num_audio_channels = check_channels_to_mics(mics_pos,mics_rms)
+
+    num_total_blocks = mics_rms.shape[0]
+
+    # get all the mic positions:
+    mics_x = mics_pos[0::2]
+    mics_y = mics_pos[1::2]
+
+    if DLTdv5:
+        mics_y = conv_DLTdv5_to_opencv2(mics_y,frame_shape)
+
+
+    disp_frame = 0
+    audio_blocknum = 0
+    dispd_blocks = 0
+
+    while disp_frame < num_frames :
+
+        dispd_blocks = 0
+        #cap.set(1,disp_frame); # Where frame_no is the frame you want
+        ret, frame = cap.read() # Read the frame
+
+        while (dispd_blocks < rms_vals_per_frame) & (audio_blocknum < num_total_blocks):
+
+
+            rms_radii =  np.apply_along_axis(conv_rms_to_radius,0,mics_rms,audio_blocknum)
+
+            for each_mic in range(num_mics):
+                cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (16,105,255), 2 )
+
+
+            cv2.putText(frame,str(disp_frame/frame_rate),(width-100,50),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
+
+            # TO BE ADDED HERE: plotting of bat positions - when given in kwargs
+            #if 'bat_positions' in kwargs:
+             #   num_bats
+
+
+
+
+            cv2.imshow('field_viewer', frame) # show frame on window
+
+
+            # write the frame with all the overlayed information
+            vid_out.write(frame)
+
+            ch = 0xFF & cv2.waitKey(1)
+
+            if ch == ord('q') :
+                disp_frame = num_frames+1
+
+
+            audio_blocknum +=1
+            dispd_blocks +=1
+
+
+
+
+        disp_frame += 1
+
+    cap.release()
+    vid_out.release()
+    cv2.destroyAllWindows()
+
+    success_msg = 'video and mic rms data succesfully compiled \n Output file written to : \n', videoout_address
+
+    return(success_msg)
+
+
 
 def rms_calculator(wav_file,block_size,**kwargs):
     '''
@@ -234,117 +413,6 @@ def get_frame_times(synchron_channel):
     return(frame_inds)
 
 
-
-def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_frame,DLTdv5=True,**kwargs):
-    '''
-    function which plays the vide and plots audio rms
-
-    Inputs:
-        videoin_address: string. path to video file
-
-        videoout_address:string. path to output video file with overlay
-
-        mics_rms : N_samples x num_channels np.array of recorded data from the
-                inputs mics whose rms values will be plotted
-
-        mics_pos: 1 x (num_mics x 2) np.array with the x,y pixel coordinates
-
-        rms_vals_per_frame: integer. Number of rms values that are to be plotted
-                        for one frame.
-
-        DLTDv5 : Boolean. Default= True. Whether the xy coordinates were digitised
-                from DLTdv5
-        **kwargs:
-        bat_positions: num_video_frames x (num_batsx2) np.array, with the xy pixel
-                        coordinates over time
-    '''
-
-
-
-    # now let's load the video, and update the audio accordingly :
-    try:
-        cap =  cv2.VideoCapture(videoin_address)
-        num_frames = int ( cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        height,width = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_shape = (height,width)
-    except:
-        raise ValueError('Unable to load video - please check file or address')
-
-    try:
-        fourcc = cv2.VideoWriter_fourcc(*'DIVX')
-        vid_out = cv2.VideoWriter(videoout_address,fourcc,10,(width,height))
-    except:
-        raise Exception('Unable to open videowriter object, check videoout_address')
-
-
-
-    # check if num mics and num audio channels match:
-
-    num_mics, num_audio_channels = check_channels_to_mics(mics_pos,mics_rms)
-
-    num_total_blocks = mics_rms.shape[0]
-
-    # get all the mic positions:
-    mics_x = mics_pos[0::2]
-    mics_y = mics_pos[1::2]
-
-    if DLTdv5:
-        mics_y = conv_DLTdv5_to_opencv2(mics_y,frame_shape)
-
-
-    disp_frame = 0
-    audio_blocknum = 0
-    dispd_blocks = 0
-
-    while disp_frame < num_frames :
-
-        dispd_blocks = 0
-        #cap.set(1,disp_frame); # Where frame_no is the frame you want
-        ret, frame = cap.read() # Read the frame
-
-        while (dispd_blocks < rms_vals_per_frame) & (audio_blocknum < num_total_blocks):
-
-
-            rms_radii =  np.apply_along_axis(conv_rms_to_radius,0,mics_rms,audio_blocknum)
-
-            for each_mic in range(num_mics):
-                cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (16,105,255), 2 )
-
-
-            cv2.putText(frame,str(disp_frame/25.0),(500,200),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
-
-            # TO BE ADDED HERE: plotting of bat positions - when given in kwargs
-            if np.remainder(audio_blocknum,23.0)==0 :
-                cv2.putText(frame,str(audio_blocknum),(500,100),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
-
-
-            cv2.imshow('field_viewer', frame) # show frame on window
-
-
-            # write the frame with all the overlayed information
-            vid_out.write(frame)
-
-            ch = 0xFF & cv2.waitKey(1)
-
-            if ch == ord('q') :
-                disp_frame = num_frames+1
-
-
-            audio_blocknum +=1
-            dispd_blocks +=1
-
-
-
-
-        disp_frame += 1
-
-    cap.release()
-    vid_out.release()
-    cv2.destroyAllWindows()
-
-
-
-    return()
 
 
 def conv_DLTdv5_to_opencv2(y_coods,frame_shape):
