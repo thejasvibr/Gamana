@@ -296,19 +296,19 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
     audio_blocknum = 0
     dispd_blocks = 0
 
-    while (disp_frame < num_frames) & (audio_blocknum < num_total_blocks):
+    while disp_frame < num_frames :
 
         dispd_blocks = 0
         #cap.set(1,disp_frame); # Where frame_no is the frame you want
         ret, frame = cap.read() # Read the frame
 
-        while dispd_blocks < rms_vals_per_frame :
+        while (dispd_blocks < rms_vals_per_frame) & (audio_blocknum < num_total_blocks):
 
 
             rms_radii =  np.apply_along_axis(conv_rms_to_radius,0,mics_rms,audio_blocknum)
 
             for each_mic in range(num_mics):
-                cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (16,105,255), -1 )
+                cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (16,105,255), 2 )
 
 
             cv2.putText(frame,str(disp_frame/25.0),(500,200),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
@@ -320,7 +320,6 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
 
             cv2.imshow('field_viewer', frame) # show frame on window
 
-            # TO BE ADDED HERE: save the displayed frame into a VideoWriter object
 
             # write the frame with all the overlayed information
             vid_out.write(frame)
