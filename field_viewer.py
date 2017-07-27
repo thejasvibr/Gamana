@@ -22,6 +22,8 @@ import glob
 
 # TO DO :
 # 1) convert all of these functions into a class based function collection
+# 2) write a function which checks if the total number of frames and the audio recordings match !! 
+
 
 
 def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True,**kwargs):
