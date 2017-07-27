@@ -24,7 +24,7 @@ import glob
 # 1) convert all of these functions into a class based function collection
 
 
-def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize=320,blocks_per_frame=24,**kwargs):
+def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True,**kwargs):
     '''
     function which finds,loads raw data files for the actual
     video with audio overlaying and saving
@@ -32,11 +32,17 @@ def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize
     Inputs:
         folder_address: string. address to the folder with all the input files
         input_video_file: string. name of video file.
-        output_video_name: string. Final name of video file - without any format.
+        output_video_name: string. Final name of video file - without the format. Final file will be .avi
         audio_blocksize: +ve integer. number of samples over which rms is calculated.
-        blocks_per_frame:
+        blocks_per_frame: +ve integer. number of rms values  per frame.
+        DLTdv5: boolean. Default as True. Whether the xy coordinates in csv files were digitised using DLTv5
 
-        **kwargs
+
+        **kwargs:
+        bat_positions
+
+    Outputs:
+    produces a video with mic rms overlayed on the mic positions
 
 
     '''
@@ -49,12 +55,13 @@ def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize
 
     # search for files with the following wildcard terms
     synchro_channel = glob.glob(folder_address + 'synchro*.wav')
-    micspos_csv =   glob.glob(folder_address,'micpos*.csv')
+
+    micspos_csv =   glob.glob(folder_address+'micpos*.csv')
     mic_wavs = glob.glob(folder_address + 'Mic*.wav')
 
     func_inpts = {'sync channel':synchro_channel,'mic positions': micspos_csv,'mic files':mic_wavs}
 
-    # disp error if some of the files have not been found
+    # disp error if some of the files have not been found in folder
     for entry in func_inpts:
         if len(func_inpts[entry]) == 0:
             msg =( 'Unable to find file name for '+ entry+'. '
@@ -62,22 +69,49 @@ def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize
             )
             raise Exception( msg )
     try:
-        fs, synchron = wav.read(folder+synchro_channel)
+        fs, synchron = wav.read(synchro_channel[0])
     except:
         raise Exception('error reading wav.read - please check input address')
 
 
     f_times = extract_frametimes(synchron)
 
-    rms_chunked = [ rms_calculator( each_file,audio_blocksize,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
+    #check if pre=existing rms block file exists and recalculate if it doesn't
 
-    mics_rms = np.column_stack(rms_chunked)
-    micpos = np.asanyarray(read_csv_files(folder+micspos_csv)).flatten()
+    precalc_rms = glob.glob(folder_address+'mics_rms*')
+
+
+    try:
+        print('trying to read pre-existing rms file')
+
+        mics_rms= np.load(precalc_rms[0])
+
+        # TO DO: add in a check if the block size and blocks per frame are the same
+        # and raise an exception if not
+    except:
+        print('issue with loading the preexisting blockrms file \n now calculating rms afresh')
+
+        rms_blocked = [ rms_calculator( each_file,audio_blocksize,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
+
+        mics_rms = np.column_stack(rms_blocked)
+
+        np.save(folder_address+'mics_rms.npy',mics_rms)
+
+        print('\n blockrms file written successfully')
+
+    micpos = np.asanyarray(read_csv_files(micspos_csv[0])).flatten()
     micpos = micpos.astype('int16')
 
-    output_video = folder+ output_video_name
+    output_video = folder_address+ output_video_name
+    input_video  = folder_address + input_video_file
 
-    play_AV(folder_address + input_video_file,output_video,mics_rms,micpos,blocks_per_frame)
+    print( ' beginning compiled video playback')
+
+    play_AV(input_video,output_video,mics_rms,micpos,blocks_per_frame,DLTdv5,**kwargs)
+
+    print ('compiled video playback ended')
+
+    return()
 
 
 
@@ -237,7 +271,11 @@ def rms_calculator(wav_file,block_size,**kwargs):
 
     if not('synchro_channel' in kwargs):
         start_segment = 0
+        print ( ' \n assuming that audio and video recording started from 0th sample on sychronously')
+
     else:
+        print('\n synchro channel found - using given frame indices')
+
         start_segment = np.min( kwargs['synchro_channel']  )
 
     print('the start index is ',start_segment)
@@ -334,13 +372,13 @@ def extract_frametimes(synchron_channel,fs=192000,vid_sig_Hz = 25, lowpass_freq 
 
     # now extract all points where the transition from -ve to +ve occurs :
 
-    trans_indxs = get_frame_times(synchron_lp)
+    trans_indxs = get_frame_times(synchron_lp,fs)
 
     return(trans_indxs)
 
 
 
-def get_frame_times(synchron_channel):
+def get_frame_times(synchron_channel,fs):
     '''
     extracts the sample points at which the
     frame was recorded. In the TeAx FLIR Tau2 cores
@@ -362,11 +400,10 @@ def get_frame_times(synchron_channel):
     '''
 
     # remember TO CHANGE THIS WHEN IT'S IN CLASS MODE ;
-    FS = 192000
 
     threshold = np.max(synchron_channel) * 0.75
 
-    min_pk_2_pk = (1/30.0)*FS
+    min_pk_2_pk = (1/30.0)*fs
 
     diff_synchron = np.diff(synchron_channel)
 
@@ -447,7 +484,6 @@ def conv_rms_to_radius(rms_array,index):
         return( radius )
 
 
-
 def read_csv_files(csv_file):
     '''
     reads the csv file
@@ -467,13 +503,6 @@ def check_for_micpos():
     return()
 
 def check_for_batpos():
-    '''
-    '''
-
-    return()
-
-
-def check_integer_blocks_per_frame():
     '''
     '''
 
@@ -505,41 +534,17 @@ def check_channels_to_mics(mic_pos,mic_audio):
 
 
 
-def adjust_origin():
-    '''
-    shifts the coordinates so that
-    the graph type origins ( w 0,0 at bottom left)
-    is compatible with the matrix type origin (w 0,0 at top left)
-    '''
-
-    return()
-
-
-
-
-
-
-
-
 
 
 
 if __name__ == '__main__':
 
     folder = 'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
+
     video = 'K3_allbats_P09_5000_21_21_30.avi'
-    synchro_channel = 'synchro.wav'
-    micspos_csv =   'micpos_0_11.csv'
-    mic_wavs = glob.glob(folder+'Mic*.wav')
 
-    fs, synchron = wav.read(folder+synchro_channel)
-    f_times = extract_frametimes(synchron)
-    rms_chunked = [ rms_calculator( each_file,320,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
-    mics_rms = np.column_stack(rms_chunked)
-    micpos = np.asanyarray(read_csv_files(folder+micspos_csv)).flatten()
-    micpos = micpos.astype('int16')
+    output_video = 'TEST_OUT_whataname.avi'
 
-    output_video = folder+'TEST_OUT_23.avi'
-
-    play_AV(folder+video,output_video,mics_rms,micpos,24)
+    #play_AV(folder+video,output_video,mics_rms,micpos,24)
+    compile_AV(folder,video,output_video,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True)
 
