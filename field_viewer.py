@@ -22,7 +22,7 @@ import glob
 
 # TO DO :
 # 1) convert all of these functions into a class based function collection
-# 2) write a function which checks if the total number of frames and the audio recordings match !! 
+# 2) write a function which checks if the total number of frames and the audio recordings match !!
 
 
 
@@ -140,6 +140,9 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
         bat_positions: num_video_frames x (num_batsx2) np.array, with the xy pixel
                         coordinates over time
         orig_fps: +ve integer. FPS at which the original video was recorded at
+                    also decides the FPS at which the output video is saved
+                    Default of 25 fps unless stated otherwise.
+
 
     '''
 
@@ -158,6 +161,33 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
         frame_rate = float( kwargs['orig_fps'] )
     else:
         frame_rate = 25.0
+
+    # TO BE IMPLEMENTED : calculate video and audio durations and check if
+    # they match
+
+    # check if the  difference of audio and video durations
+    # is more than 1 second - and get manual input to proceed or not
+#    if not ( (video_durn <= audio_durn + 1.0) or (video_durn >= audio_durn + 1.0) ):
+#
+#        waiting_for_user = True
+#
+#        while waiting_for_user:
+#
+#            user_msg = 'There is a >1 second audio-video difference in length. Do you want to continue? Y for yes, N for no  :'
+#            user_decision = raw_input(user_msg)
+#
+#
+#            if user_decision == 'Y':
+#                waiting_for_user = False
+#            elif user_decision =='N':
+#                break
+#            else:
+#                print('wrong input please give valid input')
+#
+
+
+
+
 
     try:
         fourcc = cv2.VideoWriter_fourcc(*'DIVX')
@@ -206,8 +236,6 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
             # TO BE ADDED HERE: plotting of bat positions - when given in kwargs
             #if 'bat_positions' in kwargs:
              #   num_bats
-
-
 
 
             cv2.imshow('field_viewer', frame) # show frame on window
