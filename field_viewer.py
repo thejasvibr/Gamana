@@ -142,6 +142,7 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
         orig_fps: +ve integer. FPS at which the original video was recorded at
                     also decides the FPS at which the output video is saved
                     Default of 25 fps unless stated otherwise.
+        audio
 
 
     '''
@@ -164,7 +165,7 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
 
     # TO BE IMPLEMENTED : calculate video and audio durations and check if
     # they match
-
+    #av_durns_okay = check_audio_video_durations(audio_duration,num_frames,)
     # check if the  difference of audio and video durations
     # is more than 1 second - and get manual input to proceed or not
 #    if not ( (video_durn <= audio_durn + 1.0) or (video_durn >= audio_durn + 1.0) ):
@@ -334,6 +335,7 @@ def rms_calculator(wav_file,block_size,**kwargs):
             rec_segment = recording[start_segment:]
 
         else :
+            #print('start segment index',start_segment,'i:',i)
             ValueError('Indexing problem with extracting last segment of recording..')
 
         rms_chunk = np.std(rec_segment)
@@ -558,7 +560,7 @@ def check_channels_to_mics(mic_pos,mic_audio):
 
         return(num_mics,num_channels)
     else:
-        ValueError('number of mic coordinates and mic channels do not match')
+        raise ValueError('number of mic coordinates and mic channels do not match')
 
 
 
@@ -571,9 +573,9 @@ if __name__ == '__main__':
 
     folder = 'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
 
-    video = 'K3_allbats_P09_5000_21_21_30.avi'
+    video = 'K3_P09_8000_multibats.avi'
 
-    output_video = 'TEST_OUT_whataname.avi'
+    output_video = 'TEST_OUT.avi'
 
     #play_AV(folder+video,output_video,mics_rms,micpos,24)
     compile_AV(folder,video,output_video,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True)
