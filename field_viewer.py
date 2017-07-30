@@ -34,14 +34,14 @@ def compile_AV(folder_address,input_video_file,output_video_name,audio_blocksize
     Inputs:
         folder_address: string. address to the folder with all the input files
         input_video_file: string. name of video file.
-        output_video_name: string. Final name of video file - without the format. Final file will be .avi
+        output_video_name: string. Final name of video file - with .avi
         audio_blocksize: +ve integer. number of samples over which rms is calculated.
         blocks_per_frame: +ve integer. number of rms values  per frame.
         DLTdv5: boolean. Default as True. Whether the xy coordinates in csv files were digitised using DLTv5
 
 
         **kwargs:
-        bat_positions
+        bat_positions: highlight bat positions across frames. as of 29/7/2017 not yet supported
 
     Outputs:
     produces a video with mic rms overlayed on the mic positions
@@ -229,7 +229,7 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
             rms_radii =  np.apply_along_axis(conv_rms_to_radius,0,mics_rms,audio_blocknum)
 
             for each_mic in range(num_mics):
-                cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (16,105,255), 2 )
+                cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (150,150,150), 1 )
 
 
             cv2.putText(frame,str(disp_frame/frame_rate),(width-100,50),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
@@ -239,7 +239,7 @@ def play_AV(videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_fram
              #   num_bats
 
 
-            cv2.imshow('field_viewer', frame) # show frame on window
+            cv2.imshow('GAMANA', frame) # show frame on window
 
 
             # write the frame with all the overlayed information
@@ -505,13 +505,15 @@ def conv_rms_to_radius(rms_array,index):
     converts a np.array with rms values into a viewable
     circle with rms proportional radius in pixels
     '''
-    magnif_factor = 100
+    magnif_factor = 500
     rms_value = rms_array[index]
+    #
+    baseline_radius = 10
 
     if rms_value < 0:
         raise ValueError('rms value cannot be less than 0 - please check how rms was calculated')
     else:
-        radius = int(  np.around( magnif_factor*rms_value) ) + 3
+        radius = int(  np.around( magnif_factor*rms_value) ) + baseline_radius
 
         return( radius )
 
@@ -571,11 +573,11 @@ def check_channels_to_mics(mic_pos,mic_audio):
 
 if __name__ == '__main__':
 
-    folder = 'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
+    folder = 'C:\\Users\\tbeleyur\\Documents\\barbastelle_test_flight\\audio_video_sets\\single_bats\\' #'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
 
-    video = 'K3_P09_8000_multibats.avi'
+    video = 'K1_P08_35000_single_bat.avi' #'K3_P09_8000_multibats.avi'
 
-    output_video = 'TEST_OUT.avi'
+    output_video = 'single_bat_in_room.avi'
 
     #play_AV(folder+video,output_video,mics_rms,micpos,24)
     compile_AV(folder,video,output_video,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True)
