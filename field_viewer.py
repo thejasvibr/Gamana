@@ -17,7 +17,9 @@ plt.rcParams['agg.path.chunksize'] = 100000
 import pandas as pd
 import peakutils
 import cv2
+import easygui as eg
 import glob
+
 
 
 # TO DO :
@@ -25,6 +27,9 @@ import glob
 # 2) write a function which checks if the total number of frames and the audio recordings match !!
 
 class Gamana:
+
+    def __init__(self):
+        self.magnif_factor = 100
 
     def compile_AV(self,folder_address,input_video_file,output_video_name,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True,**kwargs):
         '''
@@ -117,7 +122,7 @@ class Gamana:
 
 
 
-    def play_AV(self,videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_frame,DLTdv5=True,**kwargs):
+    def play_AV(self,videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_frame=24,DLTdv5=True,**kwargs):
         '''
         function which plays the vide and plots audio rms
 
@@ -192,8 +197,12 @@ class Gamana:
 
         try:
             fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+
+
+
             vid_out = cv2.VideoWriter(videoout_address,fourcc,frame_rate,(width,height))
         except:
+
             raise Exception('Unable to open videowriter object, check videoout_address')
 
 
@@ -272,7 +281,7 @@ class Gamana:
     def rms_calculator(self,wav_file,block_size,**kwargs):
         '''
         splits a wav file into multiple chunks of block_size
-        and calculates the rms value of this wav file
+        and calculates the rms value of these blocks
 
         Input    :
         wav_file : string. address of the WAV file
@@ -281,7 +290,8 @@ class Gamana:
 
         **kwargs:
             synchro_channel:
-                which has frame time information. Default = True
+                which has frame time information. Default = True. This decides
+                the first sample
 
         Outputs:
         rms_chunked : 1x num_chunks np.array. num_chunks is
@@ -497,7 +507,7 @@ class Gamana:
         frame_height = frame_shape[0]
 
         y_compatible = frame_height - y_coods
-
+        print  ('..coordinates made opencv2 compatible')
         return(y_compatible)
 
     def conv_rms_to_radius(self,rms_array,index):
@@ -505,7 +515,7 @@ class Gamana:
         converts a np.array with rms values into a viewable
         circle with rms proportional radius in pixels
         '''
-        magnif_factor = 500
+
         rms_value = rms_array[index]
         #
         baseline_radius = 10
@@ -513,7 +523,7 @@ class Gamana:
         if rms_value < 0:
             raise ValueError('rms value cannot be less than 0 - please check how rms was calculated')
         else:
-            radius = int(  np.around( magnif_factor*rms_value) ) + baseline_radius
+            radius = int(  np.around( self.magnif_factor*rms_value) ) + baseline_radius
 
             return( radius )
 
@@ -559,10 +569,28 @@ class Gamana:
         num_channels = mic_audio.shape[1]
 
         if num_mics == num_channels:
-
+            print('number of mics and channels match ')
             return(num_mics,num_channels)
         else:
             raise ValueError('number of mic coordinates and mic channels do not match')
+
+    def gamana_gui(self):
+        '''
+        simple gui interface which allows user to pick and choose the folder
+        and files
+        '''
+        folder = str(eg.diropenbox('please choose directory where the input files are')) + '\\'
+
+        default_filetype = '\\*.avi'
+
+        input_video = eg.fileopenbox('please choose the input raw AVI video file',default = folder+default_filetype)
+
+        filename_prompt = 'Please enter the name of the rms overlayed video file (without .avi at the end) '
+        output_video = eg.enterbox(filename_prompt) + '.avi'
+
+
+        self.compile_AV(folder,input_video,output_video)
+
 
 
 
@@ -577,7 +605,9 @@ if __name__ == '__main__':
     video = 'K1_P08_35000_single_bat.avi' #'K3_P09_8000_multibats.avi'
 
     output_video = 'single_bat_in_room_CLASS.avi'
-    gamana_instance = Gamana()
+    #gamana_instance = Gamana()
     #play_AV(folder+video,output_video,mics_rms,micpos,24)
-    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True)
+    #gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True)
 
+    a = Gamana()
+    a.gamana_gui()
