@@ -206,9 +206,9 @@ class Gamana:
         try:
             fourcc = cv2.VideoWriter_fourcc(*'DIVX')
 
+            vid_out_frame_rate = 30
 
-
-            vid_out = cv2.VideoWriter(videoout_address,fourcc,frame_rate,(width,height))
+            vid_out = cv2.VideoWriter(videoout_address,fourcc,vid_out_frame_rate,(width,height))
         except:
 
             raise Exception('Unable to open videowriter object, check videoout_address')
@@ -460,7 +460,7 @@ class Gamana:
 
         # remember TO CHANGE THIS WHEN IT'S IN CLASS MODE ;
 
-        threshold = np.max(synchron_channel) * 0.75
+        threshold = np.max(synchron_channel) * 0.5
 
         if 'vid_sig_fps' in kwargs:
             print('vid_sig_fps given ',kwargs['vid_sig_fps'],' will be used to extract peaks')
@@ -637,9 +637,9 @@ if __name__ == '__main__':
     output_video = 'single_bat_in_room_CLASS.avi'
     gamana_instance = Gamana()
     #play_AV(folder+video,output_video,mics_rms,micpos,24)
-    gamana_instance.magnif_factor = 400
+    gamana_instance.magnif_factor = 250
     gamana_instance.baseline_radius = 5
-    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=300,blocks_per_frame=2,orig_fps=500,DLTdv5=True)
+    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=100,blocks_per_frame=6,orig_fps=500,DLTdv5=True)
 
 #a = Gamana()
 #a.gamana_gui()
