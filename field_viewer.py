@@ -247,7 +247,7 @@ class Gamana:
                 rms_radii =  np.apply_along_axis(self.conv_rms_to_radius,0,mics_rms,audio_blocknum)
 
                 for each_mic in range(num_mics):
-                    cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (150,150,150), 1 )
+                    cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (100,300,5250), 1 )
 
 
                 cv2.putText(frame,str(disp_frame/frame_rate),(width-100,50),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
@@ -460,7 +460,7 @@ class Gamana:
 
         # remember TO CHANGE THIS WHEN IT'S IN CLASS MODE ;
 
-        threshold = np.max(synchron_channel) * 0.5
+        threshold = np.max(synchron_channel) * 0.3
 
         if 'vid_sig_fps' in kwargs:
             print('vid_sig_fps given ',kwargs['vid_sig_fps'],' will be used to extract peaks')
@@ -639,7 +639,7 @@ if __name__ == '__main__':
     #play_AV(folder+video,output_video,mics_rms,micpos,24)
     gamana_instance.magnif_factor = 250
     gamana_instance.baseline_radius = 5
-    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=100,blocks_per_frame=6,orig_fps=500,DLTdv5=True)
+    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=150,blocks_per_frame=4,orig_fps=500,DLTdv5=True)
 
 #a = Gamana()
 #a.gamana_gui()
