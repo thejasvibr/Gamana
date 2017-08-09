@@ -12,13 +12,12 @@ Created on Mon Jul 17 22:57:09 2017
 import scipy.signal as signal
 import numpy as np
 from scipy.io import wavfile as wav
-import matplotlib.pyplot as plt
-plt.rcParams['agg.path.chunksize'] = 100000
 import pandas as pd
 import peakutils
 import cv2
 import easygui as eg
 import glob
+import os
 
 
 
@@ -30,6 +29,7 @@ class Gamana:
 
     def __init__(self):
         self.magnif_factor = 100
+        self.baseline_radius = 10
 
     def compile_AV(self,folder_address,input_video_file,output_video_name,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True,**kwargs):
         '''
@@ -47,6 +47,7 @@ class Gamana:
 
             **kwargs:
             bat_positions: highlight bat positions across frames. as of 29/7/2017 not yet supported
+            vid_sig_fps
 
         Outputs:
         produces a video with mic rms overlayed on the mic positions
@@ -81,7 +82,13 @@ class Gamana:
             raise Exception('error reading wav.read - please check input address')
 
 
-        f_times = self.extract_frametimes(synchron)
+        f_times = self.extract_frametimes(synchron,fs,kwargs)
+
+        # 1/8/2017 : functionality to be added :
+        #        >>>> check if the block size * blocks_per_frame
+        # match up with the np.diff(f_times) -- and warn the user if
+        # they don't match.
+
 
         #check if pre=existing rms block file exists and recalculate if it doesn't
 
@@ -92,6 +99,7 @@ class Gamana:
             print('trying to read pre-existing rms file')
 
             mics_rms= np.load(precalc_rms[0])
+            print('...read  mics_rms.npy file')
 
             # TO DO: add in a check if the block size and blocks per frame are the same
             # and raise an exception if not
@@ -147,7 +155,7 @@ class Gamana:
             orig_fps: +ve integer. FPS at which the original video was recorded at
                         also decides the FPS at which the output video is saved
                         Default of 25 fps unless stated otherwise.
-            audio
+
 
 
         '''
@@ -226,6 +234,7 @@ class Gamana:
         audio_blocknum = 0
         dispd_blocks = 0
 
+        print('...beginning rms on video overlaying')
         while disp_frame < num_frames :
 
             dispd_blocks = 0
@@ -382,7 +391,7 @@ class Gamana:
         return(fs,recording)
 
 
-    def extract_frametimes(self,synchron_channel,fs=192000,vid_sig_Hz = 25, lowpass_freq = 10.0*10**3):
+    def extract_frametimes(self,synchron_channel,fs=192000,vid_sig_Hz = 25, **kwargs):
         '''
         when a square wave + high frequency signal is
         fed in as a single channel recording - then it extracts
@@ -401,26 +410,31 @@ class Gamana:
         # and then find the position of highest values in its vicinity
 
         if not (vid_sig_Hz in [25,30]):
-            ValueError('this video signal frequency is not supported by the current function')
+            print('nonstandard video sync signal (other than 25/30 Hz) !')
 
         # lowpass filter the signal
-        if lowpass_freq <= [25,30]:
-            ValueError('lowpass frequency too low - please check value once more')
+        if 'lowpass_freq' in kwargs:
+            if kwargs['lowpass_freq'] <= [25,30]:
+                ValueError('lowpass frequency too low - please check value once more')
 
-        b,a = signal.butter(8, lowpass_freq/float(fs), 'low' )
+            else:
+                b,a = signal.butter(8, kwargs['lowpass_freq']/float(fs), 'low' )
 
-        # use filtfilt to get zero phase delay
-        synchron_lp = signal.filtfilt(b,a,synchron_channel)
+                # use filtfilt to get zero phase delay
+                synchron_lp = signal.filtfilt(b,a,synchron_channel)
 
-        # now extract all points where the transition from -ve to +ve occurs :
+                # now extract all points where the transition from -ve to +ve occurs :
 
-        trans_indxs = self.get_frame_times(synchron_lp,fs)
+                trans_indxs = self.get_frame_times(synchron_lp,fs)
+        else:
+            trans_indxs = self.get_frame_times(synchron_channel,fs)
+
 
         return(trans_indxs)
 
 
 
-    def get_frame_times(self,synchron_channel,fs):
+    def get_frame_times(self,synchron_channel,fs,**kwargs):
         '''
         extracts the sample points at which the
         frame was recorded. In the TeAx FLIR Tau2 cores
@@ -432,6 +446,9 @@ class Gamana:
                         square waves of 25 or 30 Hz.
                         IMPORTANT: currently no other video frame rate is
                         supported
+        fs: integer, sampling rate
+        **kwargs:
+            vid_sig_fps : integer. fps at which the sync signal triggers the camera
 
         Outputs:
         frame_inds: 1 x num_frames np.array. Has the indices at which the square wave
@@ -445,7 +462,12 @@ class Gamana:
 
         threshold = np.max(synchron_channel) * 0.75
 
-        min_pk_2_pk = (1/30.0)*fs
+        if 'vid_sig_fps' in kwargs:
+            print('vid_sig_fps given ',kwargs['vid_sig_fps'],' will be used to extract peaks')
+            min_pk_2_pk = ( 1 / float(kwargs['vid_sig_fps']) ) *fs
+        else:
+            print ('No video_sig_fps given, assuming minimum peak-to-peak for 30Hz signal')
+            min_pk_2_pk = (1/30.0)*fs
 
         diff_synchron = np.diff(synchron_channel)
 
@@ -517,13 +539,11 @@ class Gamana:
         '''
 
         rms_value = rms_array[index]
-        #
-        baseline_radius = 10
 
         if rms_value < 0:
             raise ValueError('rms value cannot be less than 0 - please check how rms was calculated')
         else:
-            radius = int(  np.around( self.magnif_factor*rms_value) ) + baseline_radius
+            radius = int(  np.around( self.magnif_factor*rms_value) ) + self.baseline_radius
 
             return( radius )
 
@@ -581,13 +601,22 @@ class Gamana:
         '''
         folder = str(eg.diropenbox('please choose directory where the input files are')) + '\\'
 
-        default_filetype = '\\*.avi'
 
-        input_video = eg.fileopenbox('please choose the input raw AVI video file',default = folder+default_filetype)
+        input_video_path = eg.fileopenbox('please choose the input raw AVI video file',default = folder)
+
+        #extract the original file name from the whole path
+        try:
+            input_video = os.path.basename(input_video_path)
+        except:
+            raise Exception('Input file not chosen - please restart and try again')
 
         filename_prompt = 'Please enter the name of the rms overlayed video file (without .avi at the end) '
         output_video = eg.enterbox(filename_prompt) + '.avi'
 
+        #gui_user_entries =
+
+
+        #print(output_video)
 
         self.compile_AV(folder,input_video,output_video)
 
@@ -600,14 +629,17 @@ class Gamana:
 
 if __name__ == '__main__':
 
-    folder = 'C:\\Users\\tbeleyur\\Documents\\barbastelle_test_flight\\audio_video_sets\\single_bats\\' #'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
+    folder = 'C:\\Users\\tbeleyur\\Documents\\gamana_test_data\\barbastelle\\input_folder\\'
+    #'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
 
-    video = 'K1_P08_35000_single_bat.avi' #'K3_P09_8000_multibats.avi'
+    video = '300717_C1S0043_gamana.avi' #'K3_P09_8000_multibats.avi'
 
     output_video = 'single_bat_in_room_CLASS.avi'
-    #gamana_instance = Gamana()
+    gamana_instance = Gamana()
     #play_AV(folder+video,output_video,mics_rms,micpos,24)
-    #gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True)
+    gamana_instance.magnif_factor = 400
+    gamana_instance.baseline_radius = 5
+    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=300,blocks_per_frame=2,orig_fps=500,DLTdv5=True)
 
-    a = Gamana()
-    a.gamana_gui()
+#a = Gamana()
+#a.gamana_gui()
