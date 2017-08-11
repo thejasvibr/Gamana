@@ -247,6 +247,11 @@ class Gamana:
                 #if 'bat_positions' in kwargs:
                  #   num_bats
 
+                # TO BE ADDED HERE 11/8/2017:
+                # add a stamp at the beginning or end of the file which describes the
+                # block size, blocks per frame used and the original fps at which the
+                # video was recorded
+
 
                 cv2.imshow('GAMANA', frame) # show frame on window
 
@@ -620,17 +625,19 @@ class Gamana:
 
 if __name__ == '__main__':
 
-    folder = 'C:\\Users\\tbeleyur\\Documents\\gamana_test_data\\barbastelle\\input_hp_folder\\'
-    #'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
+#    folder = 'C:\\Users\\tbeleyur\\Documents\\gamana_test_data\\barbastelle\\input_hp_folder\\'
+#    #'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
+#
+#    video = '300717_C1S0043_gamana.avi' #'K3_P09_8000_multibats.avi'
+#
+#    output_video = 'BARBASTELLE_CAPTURE_ATTEMPT_W_HP_AUDIO.avi'
+#    gamana_instance = Gamana()
+#    #play_AV(folder+video,output_video,mics_rms,micpos,24)
+#    gamana_instance.magnif_factor = 250
+#    gamana_instance.baseline_radius = 7
+#    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=150,blocks_per_frame=4,orig_fps=500,DLTdv5=True)
 
-    video = '300717_C1S0043_gamana.avi' #'K3_P09_8000_multibats.avi'
-
-    output_video = 'single_bat_in_room_CLASS_hp.avi'
-    gamana_instance = Gamana()
-    #play_AV(folder+video,output_video,mics_rms,micpos,24)
-    gamana_instance.magnif_factor = 250
-    gamana_instance.baseline_radius = 5
-    gamana_instance.compile_AV(folder,video,output_video,audio_blocksize=150,blocks_per_frame=4,orig_fps=500,DLTdv5=True)
-
-#a = Gamana()
-#a.gamana_gui()
+    a = Gamana()
+    a.magnif_factor = 350
+    a.baseline_radius = 5
+    a.gamana_gui()
