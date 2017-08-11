@@ -91,36 +91,19 @@ class Gamana:
         # match up with the np.diff(f_times) -- and warn the user if
         # they don't match.
 
+        # if the synchro channel is given , then use it - otherwise assume the video-audio begins
+        # from the 1st sample on!
 
-        #check if pre=existing rms block file exists and recalculate if it doesn't
+        if len(synchro_channel) >0:
+            rms_blocked = [ self.rms_calculator( each_file,audio_blocksize,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
+        else:
+            rms_blocked = [ self.rms_calculator( each_file,audio_blocksize)['chunked_rmsdata'] for each_file in mic_wavs ]
 
-        precalc_rms = glob.glob(folder_address+'mics_rms*')
+        mics_rms = np.column_stack(rms_blocked)
 
+        np.save(folder_address+'mics_rms.npy',mics_rms)
 
-        try:
-            print('trying to read pre-existing rms file')
-
-            mics_rms= np.load(precalc_rms[0])
-            print('...read  mics_rms.npy file')
-
-            # TO DO: add in a check if the block size and blocks per frame are the same
-            # and raise an exception if not
-        except:
-            print('issue with loading the preexisting blockrms file \n now calculating rms afresh')
-
-            # if the synchro channel is given , then use it - otherwise assume the video-audio begins
-            # from the 1st sample on!
-
-            if len(synchro_channel) >0:
-                rms_blocked = [ self.rms_calculator( each_file,audio_blocksize,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
-            else:
-                rms_blocked = [ self.rms_calculator( each_file,audio_blocksize)['chunked_rmsdata'] for each_file in mic_wavs ]
-
-            mics_rms = np.column_stack(rms_blocked)
-
-            np.save(folder_address+'mics_rms.npy',mics_rms)
-
-            print('\n blockrms file written successfully')
+        print('\n blockrms file written successfully')
 
         micpos = np.asanyarray(self.read_csv_files(micspos_csv[0])).flatten()
         micpos = micpos.astype('int16')
@@ -642,7 +625,7 @@ if __name__ == '__main__':
 
     video = '300717_C1S0043_gamana.avi' #'K3_P09_8000_multibats.avi'
 
-    output_video = 'single_bat_in_room_CLASS.avi'
+    output_video = 'single_bat_in_room_CLASS_hp.avi'
     gamana_instance = Gamana()
     #play_AV(folder+video,output_video,mics_rms,micpos,24)
     gamana_instance.magnif_factor = 250
