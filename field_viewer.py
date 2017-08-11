@@ -65,9 +65,12 @@ class Gamana:
         synchro_channel = glob.glob(folder_address + 'synchro*.wav')
 
         micspos_csv =   glob.glob(folder_address+'micpos*.csv')
+        # THINGS TO DO : 11/8/2017 , write a function to make sure that
+        # MIC numbers fit a particular format - or somehow get them
+        # in an ascending order in the list
         mic_wavs = glob.glob(folder_address + 'Mic*.wav')
 
-        func_inpts = {'sync channel':synchro_channel,'mic positions': micspos_csv,'mic files':mic_wavs}
+        func_inpts = {'mic positions': micspos_csv,'mic files':mic_wavs}
 
         # disp error if some of the files have not been found in folder
         for entry in func_inpts:
@@ -78,11 +81,10 @@ class Gamana:
                 raise Exception( msg )
         try:
             fs, synchron = wav.read(synchro_channel[0])
+            f_times = self.extract_frametimes(synchron,fs,kwargs)
         except:
-            raise Exception('error reading wav.read - please check input address')
+            print('ATTENTION/ACHTUNG: Unable to read synchro channel or get frame samples- assuming 1st frame was taken at first audio sample ')
 
-
-        f_times = self.extract_frametimes(synchron,fs,kwargs)
 
         # 1/8/2017 : functionality to be added :
         #        >>>> check if the block size * blocks_per_frame
@@ -106,7 +108,13 @@ class Gamana:
         except:
             print('issue with loading the preexisting blockrms file \n now calculating rms afresh')
 
-            rms_blocked = [ self.rms_calculator( each_file,audio_blocksize,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
+            # if the synchro channel is given , then use it - otherwise assume the video-audio begins
+            # from the 1st sample on!
+
+            if len(synchro_channel) >0:
+                rms_blocked = [ self.rms_calculator( each_file,audio_blocksize,synchro_channel = f_times)['chunked_rmsdata'] for each_file in mic_wavs ]
+            else:
+                rms_blocked = [ self.rms_calculator( each_file,audio_blocksize)['chunked_rmsdata'] for each_file in mic_wavs ]
 
             mics_rms = np.column_stack(rms_blocked)
 
@@ -172,7 +180,7 @@ class Gamana:
             raise ValueError('Unable to load video - please check file or address')
 
         if 'orig_fps' in kwargs:
-            frame_rate = float( kwargs['orig_fps'] )
+            frame_rate = int(kwargs['orig_fps'] )
         else:
             frame_rate = 25.0
 
@@ -247,10 +255,10 @@ class Gamana:
                 rms_radii =  np.apply_along_axis(self.conv_rms_to_radius,0,mics_rms,audio_blocknum)
 
                 for each_mic in range(num_mics):
-                    cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (100,300,5250), 1 )
+                    cv2.circle(frame, (mics_x[each_mic] , mics_y[each_mic] ), rms_radii[each_mic], (100,300,525), 1 )
 
 
-                cv2.putText(frame,str(disp_frame/frame_rate),(width-100,50),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
+                cv2.putText(frame,str(disp_frame/float(frame_rate)),(width-100,50),cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
 
                 # TO BE ADDED HERE: plotting of bat positions - when given in kwargs
                 #if 'bat_positions' in kwargs:
@@ -629,7 +637,7 @@ class Gamana:
 
 if __name__ == '__main__':
 
-    folder = 'C:\\Users\\tbeleyur\\Documents\\gamana_test_data\\barbastelle\\input_folder\\'
+    folder = 'C:\\Users\\tbeleyur\\Documents\\gamana_test_data\\barbastelle\\input_hp_folder\\'
     #'C:\\Users\\tbeleyur\\Documents\\common\\Python_common\\field_viewer\\test_data\\play_av_test\\'
 
     video = '300717_C1S0043_gamana.avi' #'K3_P09_8000_multibats.avi'
