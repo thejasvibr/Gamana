@@ -22,8 +22,10 @@ import os
 
 
 # TO DO :
-# 1) convert all of these functions into a class based function collection
+# PRIOTIRY:
+# > the EASYGUI package is the latest ..why is my Spyder refusing to work with it ?
 # 2) write a function which checks if the total number of frames and the audio recordings match !!
+
 
 class Gamana:
 
