@@ -595,7 +595,9 @@ class Gamana:
         simple gui interface which allows user to pick and choose the folder
         and files
         '''
+        print('1')
         folder = str(eg.diropenbox('please choose directory where the input files are')) + '\\'
+        print('2')
 
 
         input_video_path = eg.fileopenbox('please choose the input raw AVI video file',default = folder)
