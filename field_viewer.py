@@ -23,7 +23,8 @@ import os
 
 # TO DO :
 # PRIOTIRY:
-# > the EASYGUI package is the latest ..why is my Spyder refusing to work with it ?
+# > the EASYGUI package is the latest ..why is my Spyder refusing to work with it ? :
+# Spyder not working, but when run from CLI python 2.7 it's working perfectly fine 
 # 2) write a function which checks if the total number of frames and the audio recordings match !!
 
 
