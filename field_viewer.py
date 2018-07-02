@@ -34,12 +34,13 @@ class Gamana:
         self.magnif_factor = 100
         self.baseline_radius = 10
 
-    def compile_AV(self,folder_address,input_video_file,output_video_name,audio_blocksize=320,blocks_per_frame=24,DLTdv5=True,**kwargs):
+    def compile_AV(self,folder_address,input_video_file,output_video_name,
+                  audio_blocksize=320,blocks_per_frame=24,DLTdv5=True,**kwargs):
         '''
         function which finds,loads raw data files for the actual
         video with audio overlaying and saving
 
-        Inputs:
+        Parameters :
             folder_address: string. address to the folder with all the input files
             input_video_file: string. name of video file.
             output_video_name: string. Final name of video file - with .avi
@@ -124,7 +125,8 @@ class Gamana:
 
 
 
-    def play_AV(self,videoin_address,videoout_address,mics_rms,mics_pos,rms_vals_per_frame=24,DLTdv5=True,**kwargs):
+    def play_AV(self,videoin_address,videoout_address,mics_rms,mics_pos,
+                        rms_vals_per_frame=24,DLTdv5=True,**kwargs):
         '''
         function which plays the vide and plots audio rms
 
@@ -390,7 +392,8 @@ class Gamana:
         return(fs,recording)
 
 
-    def extract_frametimes(self,synchron_channel,fs=192000,vid_sig_Hz = 25, **kwargs):
+    def extract_frametimes(self,synchron_channel,fs=192000,
+                                                   vid_sig_Hz = 25, **kwargs):
         '''
         when a square wave + high frequency signal is
         fed in as a single channel recording - then it extracts
